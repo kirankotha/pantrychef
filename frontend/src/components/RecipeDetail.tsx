@@ -167,7 +167,7 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" style={{ touchAction: 'pan-y' }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -184,11 +184,11 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
                     <p className="text-xs text-gray-400">Tap a step to mark complete</p>
                   </div>
                   {recipe.instructions.map(step => (
-                    <motion.div
+                    <div
                       key={step.step}
                       onClick={() => toggleStep(step.step)}
                       className={cn(
-                        'flex gap-4 p-4 rounded-2xl border cursor-pointer transition-all',
+                        'flex gap-4 p-4 rounded-2xl border cursor-pointer transition-all select-none',
                         checkedSteps.has(step.step)
                           ? 'border-green-200 bg-green-50'
                           : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/30'
@@ -196,9 +196,7 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
                     >
                       <div className={cn(
                         'flex-shrink-0 transition-all',
-                        checkedSteps.has(step.step)
-                          ? 'text-green-500'
-                          : ''
+                        checkedSteps.has(step.step) ? 'text-green-500' : ''
                       )}>
                         {checkedSteps.has(step.step)
                           ? <CheckCircle2 className="w-8 h-8 fill-green-100" />
@@ -224,7 +222,7 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
                           </span>
                         )}
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                   {recipe.storage && (
                     <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
@@ -279,16 +277,13 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
               {activeTab === 'tips' && (
                 <div className="space-y-3">
                   {recipe.tips.map((tip, i) => (
-                    <motion.div
+                    <div
                       key={i}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.08 }}
                       className="flex gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100"
                     >
                       <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                       <p className="text-sm text-amber-800 leading-relaxed">{tip}</p>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               )}
