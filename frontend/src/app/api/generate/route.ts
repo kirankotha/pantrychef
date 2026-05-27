@@ -95,16 +95,31 @@ Special instructions: ${modeInstructions[mode] || modeInstructions.standard}
 
 Generate 3-4 creative recipes that maximize use of the available ingredients. Include realistic substitutions for missing items where possible.`
 
-    const completion = await openai.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.8,
-      max_tokens: 4000,
-      response_format: { type: 'json_object' },
-    })
+    const MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it']
+    let completion: any
+    let lastError: any
+    for (const model of MODELS) {
+      try {
+        completion = await openai.chat.completions.create({
+          model,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.8,
+          max_tokens: 4000,
+          response_format: { type: 'json_object' },
+        })
+        break
+      } catch (err: any) {
+        lastError = err
+        const isRateLimit = err?.status === 429 || err?.code === 'rate_limit_exceeded'
+        const isTPM = err?.error?.message?.includes('tokens per minute')
+        if (isRateLimit && !isTPM) { console.warn(`Model ${model} rate limited, trying next...`); continue }
+        throw err
+      }
+    }
+    if (!completion) throw lastError
 
     const content = completion.choices[0]?.message?.content
     if (!content) {
@@ -113,15 +128,16 @@ Generate 3-4 creative recipes that maximize use of the available ingredients. In
 
     const parsed = JSON.parse(content)
     const recipes = parsed.recipes || []
-
-    // Sort by match score
     recipes.sort((a: { matchScore: number }, b: { matchScore: number }) => b.matchScore - a.matchScore)
 
     return NextResponse.json({ recipes, usage: completion.usage })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Recipe generation error:', error)
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 })
+    }
+    if (error?.status === 429 || error?.code === 'rate_limit_exceeded') {
+      return NextResponse.json({ error: 'AI quota exhausted. Please wait a few minutes and try again.' }, { status: 429 })
     }
     return NextResponse.json({ error: 'Failed to generate recipes. Please try again.' }, { status: 500 })
   }
