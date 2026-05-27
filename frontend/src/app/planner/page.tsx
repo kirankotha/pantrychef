@@ -524,7 +524,7 @@ function AIDietPlanTab() {
 
 export default function PlannerPage() {
   const { savedRecipes } = useAppStore()
-  const [activeTab, setActiveTab] = useState<'manual' | 'ai-plan'>('manual')
+  const [activeTab, setActiveTab] = useState<'manual' | 'ai-plan'>('ai-plan')
   const [plan, setPlan] = useState<Record<string, Partial<Record<typeof MEAL_SLOTS[number], Recipe>>>>(
     () => Object.fromEntries(DAYS.map(d => [d, {}]))
   )
@@ -578,8 +578,8 @@ export default function PlannerPage() {
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-gray-100 rounded-2xl w-fit mb-6">
           {[
-            { key: 'manual', label: 'Manual Planner', icon: <Calendar className="w-4 h-4" /> },
             { key: 'ai-plan', label: 'AI Diet Plan', icon: <Sparkles className="w-4 h-4" /> },
+            { key: 'manual', label: 'Manual Planner', icon: <Calendar className="w-4 h-4" /> },
           ].map(tab => (
             <button
               key={tab.key}
