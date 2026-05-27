@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import {
   X, Clock, Users, Flame, ChefHat, Heart, CheckCircle2,
   Lightbulb, Package, ShoppingCart, Star, BookOpen
 } from 'lucide-react'
 import NutritionTable from './NutritionTable'
 import { useAppStore } from '@/store/useAppStore'
-import { cn, formatTime, getCuisineGradient, getDifficultyColor } from '@/lib/utils'
+import { cn, formatTime, getCuisineGradient } from '@/lib/utils'
 import type { Recipe } from '@/types'
 import toast from 'react-hot-toast'
 
@@ -24,6 +24,13 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
   const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set())
   const { saveRecipe, unsaveRecipe, isSaved } = useAppStore()
   const saved = isSaved(recipe.id)
+
+  // Lock body scroll while modal is open (prevents page scroll stealing touch events on mobile)
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
 
   const toggleStep = (step: number) => {
     setCheckedSteps(prev => {
@@ -167,16 +174,8 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto" style={{ touchAction: 'pan-y' }}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-              className="p-4 space-y-4"
-            >
+        <div className="flex-1 overflow-y-auto overscroll-contain" style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+          <div className="p-4 space-y-4">
               {activeTab === 'instructions' && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -287,8 +286,7 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
                   ))}
                 </div>
               )}
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </div>
       </motion.div>
     </div>
