@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, ChevronDown, ChevronUp, Clock, Users,
@@ -60,7 +60,16 @@ export default function DashboardPage() {
 
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    setIsDesktop(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const handleGenerate = async () => {
     if (ingredients.length === 0) {
@@ -141,7 +150,7 @@ export default function DashboardPage() {
             </div>
 
             <AnimatePresence>
-              {(showFilters || typeof window !== 'undefined' && window.innerWidth >= 1024) && (
+              {(showFilters || isDesktop) && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
