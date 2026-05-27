@@ -6,7 +6,7 @@ import {
   Calendar, Plus, Trash2, ShoppingCart,
   ChefHat, Sparkles, Clock, Flame, CheckSquare,
   Dumbbell, Leaf, Zap, ChevronDown, ChevronUp,
-  RefreshCw, AlertCircle, Download
+  RefreshCw, AlertCircle, Download, X
 } from 'lucide-react'
 import Link from 'next/link'
 import Header from '@/components/Header'
@@ -111,6 +111,20 @@ const DIET_TYPES: { value: DietPlanType; label: string; icon: React.ReactNode; d
 ]
 
 const CALORIE_TARGETS = [1200, 1500, 1800, 2000, 2500]
+
+const CUISINES = [
+  { value: '', label: 'Any', emoji: '🌍' },
+  { value: 'Indian', label: 'Indian', emoji: '🇮🇳' },
+  { value: 'Italian', label: 'Italian', emoji: '🇮🇹' },
+  { value: 'Mediterranean', label: 'Mediterranean', emoji: '🌊' },
+  { value: 'Mexican', label: 'Mexican', emoji: '🇲🇽' },
+  { value: 'Chinese', label: 'Chinese', emoji: '🇨🇳' },
+  { value: 'Japanese', label: 'Japanese', emoji: '🇯🇵' },
+  { value: 'Thai', label: 'Thai', emoji: '🇹🇭' },
+  { value: 'American', label: 'American', emoji: '🇺🇸' },
+  { value: 'Middle Eastern', label: 'Middle Eastern', emoji: '🌙' },
+  { value: 'Korean', label: 'Korean', emoji: '🇰🇷' },
+]
 
 const MEAL_SLOT_META: { key: keyof Omit<DietDay, 'day' | 'totalCalories' | 'totalProtein' | 'totalCarbs' | 'totalFat'>; emoji: string; label: string }[] = [
   { key: 'breakfast', emoji: '🌅', label: 'Breakfast' },
@@ -245,9 +259,25 @@ function DietDayCard({ dayData, defaultOpen }: { dayData: DietDay; defaultOpen?:
 function AIDietPlanTab() {
   const [dietType, setDietType] = useState<DietPlanType>('protein')
   const [targetCalories, setTargetCalories] = useState(1800)
+  const [cuisine, setCuisine] = useState('')
+  const [avoidIngredients, setAvoidIngredients] = useState<string[]>([])
+  const [avoidInput, setAvoidInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [plan, setPlan] = useState<GeneratedDietPlan | null>(null)
+
+  const addAvoid = (raw: string) => {
+    const items = raw.split(',').map(s => s.trim()).filter(s => s.length > 0)
+    setAvoidIngredients(prev => [...new Set([...prev, ...items])])
+    setAvoidInput('')
+  }
+
+  const handleAvoidKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      if (avoidInput.trim()) addAvoid(avoidInput)
+    }
+  }
 
   const handleGenerate = async () => {
     setLoading(true)
@@ -257,7 +287,7 @@ function AIDietPlanTab() {
       const res = await fetch('/pantrychef/api/diet-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dietType, targetCalories }),
+        body: JSON.stringify({ dietType, targetCalories, cuisine, avoidIngredients }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Generation failed')
@@ -337,6 +367,55 @@ function AIDietPlanTab() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Cuisine preference */}
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700">
+            Cuisine style <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {CUISINES.map(({ value, label, emoji }) => (
+              <button
+                key={value || 'any'}
+                onClick={() => setCuisine(value)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all',
+                  cuisine === value
+                    ? 'bg-orange-500 text-white border-orange-500'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-orange-300'
+                )}
+              >
+                <span>{emoji}</span> {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Ingredients to avoid */}
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700">
+            Ingredients to avoid <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+          <div className="flex flex-wrap gap-1.5 p-2.5 rounded-xl border border-gray-200 bg-white min-h-[44px] focus-within:border-orange-400 transition-colors">
+            {avoidIngredients.map(item => (
+              <span key={item} className="flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-medium">
+                {item}
+                <button onClick={() => setAvoidIngredients(prev => prev.filter(i => i !== item))} className="hover:text-red-900 transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+            <input
+              value={avoidInput}
+              onChange={e => setAvoidInput(e.target.value)}
+              onKeyDown={handleAvoidKeyDown}
+              onBlur={() => { if (avoidInput.trim()) addAvoid(avoidInput) }}
+              placeholder={avoidIngredients.length === 0 ? 'e.g. peanuts, shellfish, dairy — press Enter to add' : 'Add more…'}
+              className="flex-1 min-w-32 text-xs outline-none bg-transparent text-gray-700 placeholder-gray-400"
+            />
+          </div>
+          <p className="text-xs text-gray-400">Press Enter or comma to add each item</p>
         </div>
 
         <motion.button

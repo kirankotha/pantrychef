@@ -40,18 +40,25 @@ const DIET_CONFIGS: Record<string, { label: string; description: string; rules: 
   },
 }
 
-const buildPrompt = (dietType: string, targetCalories: number): string => {
+const buildPrompt = (dietType: string, targetCalories: number, cuisine: string, avoidIngredients: string[]): string => {
   const config = DIET_CONFIGS[dietType]
+  const cuisineLine = cuisine ? `- Cuisine style: ${cuisine} — all meals should reflect ${cuisine} cooking traditions and ingredients.` : ''
+  const avoidLine = avoidIngredients.length > 0
+    ? `- STRICTLY avoid these ingredients in every meal: ${avoidIngredients.join(', ')}. Do not use them or any derivatives.`
+    : ''
+
   return `You are an expert nutritionist. Generate a precise 7-day ${config.label} meal plan targeting ${targetCalories} kcal per day.
 
 ${config.rules}
+${cuisineLine}
+${avoidLine}
 
 CRITICAL: Return ONLY valid JSON. No markdown, no text outside JSON.
 
 Use this EXACT JSON structure:
 {
   "plan": {
-    "name": "7-Day ${config.label}",
+    "name": "7-Day ${config.label}${cuisine ? ' (' + cuisine + ')' : ''}",
     "description": "${config.description}",
     "weeklyAvgCalories": ${targetCalories},
     "days": [
@@ -95,7 +102,7 @@ REQUIREMENTS:
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { dietType, targetCalories } = body
+    const { dietType, targetCalories, cuisine = '', avoidIngredients = [] } = body
 
     if (!['protein', 'gm', 'hybrid'].includes(dietType)) {
       return NextResponse.json({ error: 'Invalid diet type' }, { status: 400 })
@@ -114,7 +121,7 @@ export async function POST(req: NextRequest) {
 
     const completion = await openai.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: buildPrompt(dietType, targetCalories) }],
+      messages: [{ role: 'user', content: buildPrompt(dietType, targetCalories, cuisine, avoidIngredients) }],
       temperature: 0.6,
       max_tokens: 8000,
       response_format: { type: 'json_object' },
