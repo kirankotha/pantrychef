@@ -1,0 +1,302 @@
+'use client'
+
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  X, Clock, Users, Flame, ChefHat, Heart, CheckCircle2,
+  Lightbulb, Package, ShoppingCart, Star, BookOpen
+} from 'lucide-react'
+import NutritionTable from './NutritionTable'
+import { useAppStore } from '@/store/useAppStore'
+import { cn, formatTime, getCuisineGradient, getDifficultyColor } from '@/lib/utils'
+import type { Recipe } from '@/types'
+import toast from 'react-hot-toast'
+
+interface Props {
+  recipe: Recipe
+  onClose: () => void
+}
+
+type Tab = 'instructions' | 'ingredients' | 'nutrition' | 'tips'
+
+export default function RecipeDetail({ recipe, onClose }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>('instructions')
+  const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set())
+  const { saveRecipe, unsaveRecipe, isSaved } = useAppStore()
+  const saved = isSaved(recipe.id)
+
+  const toggleStep = (step: number) => {
+    setCheckedSteps(prev => {
+      const next = new Set(prev)
+      next.has(step) ? next.delete(step) : next.add(step)
+      return next
+    })
+  }
+
+  const handleSave = () => {
+    if (saved) {
+      unsaveRecipe(recipe.id)
+      toast('Removed from saved')
+    } else {
+      saveRecipe(recipe)
+      toast.success('Recipe saved!')
+    }
+  }
+
+  const handleShoppingList = () => {
+    const missing = recipe.missingIngredients.join(', ')
+    toast.success(`Shopping list: ${missing || 'Nothing needed!'}`)
+  }
+
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: 'instructions', label: 'Steps', icon: <BookOpen className="w-3.5 h-3.5" /> },
+    { id: 'ingredients', label: 'Ingredients', icon: <Package className="w-3.5 h-3.5" /> },
+    { id: 'nutrition', label: 'Nutrition', icon: <Flame className="w-3.5 h-3.5" /> },
+    { id: 'tips', label: 'Tips', icon: <Lightbulb className="w-3.5 h-3.5" /> },
+  ]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+
+      {/* Panel */}
+      <motion.div
+        initial={{ y: '100%', opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        onClick={e => e.stopPropagation()}
+        className="relative w-full sm:max-w-2xl max-h-[90vh] bg-white sm:rounded-3xl rounded-t-3xl overflow-hidden flex flex-col shadow-2xl"
+      >
+        {/* Hero header */}
+        <div className={cn(
+          'relative p-6 pb-8 bg-gradient-to-br flex-shrink-0',
+          getCuisineGradient(recipe.cuisine)
+        )}>
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="pr-10">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-xs font-medium">
+                {recipe.cuisine}
+              </span>
+              <span className={cn(
+                'px-2 py-0.5 rounded-full text-xs font-medium',
+                recipe.difficulty === 'Easy' ? 'bg-green-500/20 text-white' :
+                recipe.difficulty === 'Medium' ? 'bg-amber-500/20 text-white' :
+                'bg-red-500/20 text-white'
+              )}>
+                {recipe.difficulty}
+              </span>
+            </div>
+            <h2 className="text-2xl font-bold text-white leading-tight">{recipe.name}</h2>
+            <p className="text-white/80 text-sm mt-2 line-clamp-2">{recipe.description}</p>
+          </div>
+
+          {/* Quick stats */}
+          <div className="flex items-center gap-4 mt-4">
+            {[
+              { icon: <Clock className="w-4 h-4" />, label: formatTime(recipe.totalTime) },
+              { icon: <Flame className="w-4 h-4" />, label: `${recipe.nutrition.calories} kcal` },
+              { icon: <Users className="w-4 h-4" />, label: `${recipe.servings} servings` },
+              { icon: <Star className="w-4 h-4" />, label: `${recipe.matchScore}% match` },
+            ].map(({ icon, label }) => (
+              <div key={label} className="flex items-center gap-1.5 text-white/90 text-xs font-medium">
+                {icon}
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Action bar */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 flex-shrink-0">
+          <button onClick={handleSave} className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+            saved
+              ? 'bg-red-50 text-red-600 border-red-200'
+              : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+          )}>
+            <Heart className={cn('w-3.5 h-3.5', saved && 'fill-current')} />
+            {saved ? 'Saved' : 'Save Recipe'}
+          </button>
+          {recipe.missingIngredients.length > 0 && (
+            <button onClick={handleShoppingList} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 bg-gray-50 text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all">
+              <ShoppingCart className="w-3.5 h-3.5" />
+              Shopping List ({recipe.missingIngredients.length})
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2.5 py-1.5 rounded-xl border border-green-200">
+            <ChefHat className="w-3.5 h-3.5" />
+            <span>{recipe.matchScore}% ingredients available</span>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100 px-4 flex-shrink-0">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'relative flex items-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors',
+                activeTab === tab.id ? 'text-orange-600' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+              {activeTab === tab.id && (
+                <motion.div
+                  layoutId="tab-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500"
+                />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-y-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="p-4 space-y-4"
+            >
+              {activeTab === 'instructions' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500">{recipe.instructions.length} steps</p>
+                    <p className="text-xs text-gray-400">Tap a step to mark complete</p>
+                  </div>
+                  {recipe.instructions.map(step => (
+                    <motion.div
+                      key={step.step}
+                      onClick={() => toggleStep(step.step)}
+                      className={cn(
+                        'flex gap-4 p-4 rounded-2xl border cursor-pointer transition-all',
+                        checkedSteps.has(step.step)
+                          ? 'border-green-200 bg-green-50'
+                          : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/30'
+                      )}
+                    >
+                      <div className={cn(
+                        'flex-shrink-0 transition-all',
+                        checkedSteps.has(step.step)
+                          ? 'text-green-500'
+                          : ''
+                      )}>
+                        {checkedSteps.has(step.step)
+                          ? <CheckCircle2 className="w-8 h-8 fill-green-100" />
+                          : <div className="step-number">{step.step}</div>
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={cn(
+                          'font-semibold text-sm',
+                          checkedSteps.has(step.step) ? 'text-green-700 line-through' : 'text-gray-900'
+                        )}>
+                          {step.title}
+                        </h4>
+                        <p className={cn(
+                          'text-xs mt-1 leading-relaxed',
+                          checkedSteps.has(step.step) ? 'text-green-600' : 'text-gray-600'
+                        )}>
+                          {step.description}
+                        </p>
+                        {step.time && (
+                          <span className="inline-flex items-center gap-1 mt-2 text-xs text-gray-400">
+                            <Clock className="w-3 h-3" /> {step.time} min
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                  {recipe.storage && (
+                    <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                      <p className="text-xs font-semibold text-blue-700 mb-1">Storage Instructions</p>
+                      <p className="text-xs text-blue-600">{recipe.storage}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'ingredients' && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-gray-900">Available ingredients</h3>
+                    {recipe.ingredients.filter(i => i.available).map(ing => (
+                      <div key={ing.name} className="flex items-center gap-3 py-2 px-3 bg-green-50 rounded-xl border border-green-100">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-gray-900">{ing.name}</span>
+                          {ing.amount && <span className="text-sm text-gray-500 ml-2">— {ing.amount}</span>}
+                        </div>
+                        {ing.substitute && (
+                          <span className="text-xs text-gray-400">sub: {ing.substitute}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {recipe.missingIngredients.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold text-amber-700">Optional / missing ingredients</h3>
+                      {recipe.ingredients.filter(i => !i.available).map(ing => (
+                        <div key={ing.name} className="flex items-center gap-3 py-2 px-3 bg-amber-50 rounded-xl border border-amber-100">
+                          <ShoppingCart className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-gray-700">{ing.name}</span>
+                            {ing.amount && <span className="text-sm text-gray-500 ml-2">— {ing.amount}</span>}
+                          </div>
+                          {ing.substitute && (
+                            <span className="text-xs text-orange-600">→ {ing.substitute}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'nutrition' && (
+                <NutritionTable nutrition={recipe.nutrition} servings={recipe.servings} />
+              )}
+
+              {activeTab === 'tips' && (
+                <div className="space-y-3">
+                  {recipe.tips.map((tip, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                      className="flex gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100"
+                    >
+                      <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-amber-800 leading-relaxed">{tip}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}

@@ -1,0 +1,94 @@
+version: '3.9'
+
+services:
+  # ─────────────────────────────
+  # PostgreSQL
+  # ─────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: pantrychef_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pantrychef
+      POSTGRES_USER: pantrychef
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pantrychef"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────
+  # Redis (caching)
+  # ─────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: pantrychef_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ─────────────────────────────
+  # FastAPI Backend
+  # ─────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pantrychef_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pantrychef:${DB_PASSWORD:-changeme}@db:5432/pantrychef
+      REDIS_URL: redis://redis:6379
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      SECRET_KEY: ${SECRET_KEY:-change-this-secret}
+      ENVIRONMENT: production
+      CORS_ORIGINS: '["http://localhost:3000","https://pantrychef.app"]'
+    ports:
+      - "8010:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────
+  # Next.js Frontend
+  # ─────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pantrychef_frontend
+    restart: unless-stopped
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-this}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    ports:
+      - "3010:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: pantrychef_network
