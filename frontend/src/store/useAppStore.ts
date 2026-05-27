@@ -17,7 +17,19 @@ interface GenerateOptions {
   mode: CookingMode
 }
 
+export interface AuthUser {
+  id: string
+  email: string
+  name?: string | null
+}
+
 interface AppState {
+  // Auth
+  user: AuthUser | null
+  token: string | null
+  setAuth: (user: AuthUser, token: string) => void
+  clearAuth: () => void
+
   ingredients: Ingredient[]
   generateOptions: GenerateOptions
   recipes: Recipe[]
@@ -51,6 +63,13 @@ const defaultOptions: GenerateOptions = {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      user: null,
+      token: null,
+
+      setAuth: (user, token) => set({ user, token }),
+
+      clearAuth: () => set({ user: null, token: null }),
+
       ingredients: [],
       generateOptions: defaultOptions,
       recipes: [],
@@ -109,6 +128,8 @@ export const useAppStore = create<AppState>()(
     {
       name: 'pantrychef-store',
       partialize: (state) => ({
+        user: state.user,
+        token: state.token,
         ingredients: state.ingredients,
         generateOptions: state.generateOptions,
         savedRecipes: state.savedRecipes,
