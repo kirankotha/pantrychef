@@ -400,9 +400,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Recipe detail modal */}
-      <AnimatePresence>
+      <AnimatePresence mode="sync">
         {selectedRecipe && (
           <RecipeDetail
+            key={selectedRecipe.id}
             recipe={selectedRecipe}
             onClose={() => { setSelectedRecipe(null); setActiveRecipe(null) }}
           />
