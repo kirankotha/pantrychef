@@ -66,14 +66,15 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
         onClick={onClose}
       />
 
-      {/* Panel — is itself the scroll container; no overflow-hidden parent trapping scroll */}
+      {/* Centering wrapper — flex handles positioning so Framer Motion only needs y-axis */}
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+      {/* Panel */}
       <motion.div
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'tween', ease: [0.32, 0.72, 0, 1], duration: 0.35 }}
-        className="fixed inset-x-0 bottom-0 z-50 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-2xl w-full max-h-[92dvh] sm:max-h-[90vh] flex flex-col bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
-        onClick={e => e.stopPropagation()}
+        className="pointer-events-auto w-full sm:max-w-2xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
       >
         {/* Hero header — overflow-hidden only here for rounding, not on the scroll parent */}
         <div className={cn(
@@ -255,6 +256,7 @@ export default function RecipeDetail({ recipe, onClose }: Props) {
           </div>
         </div>
       </motion.div>
+      </div>
     </>
   )
 }
