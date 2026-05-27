@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.database import init_db, engine
 from app.core.limiter import limiter
 from app.core.redis_client import get_redis, close_redis
+import app.models  # noqa: F401 — register all ORM models before routers
 from app.api import recipes, auth, pantry
 
 
