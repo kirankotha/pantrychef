@@ -127,7 +127,12 @@ export interface ShoppingListItem {
   checked: boolean
 }
 
-export type DietPlanType = 'protein' | 'gm' | 'hybrid'
+export type DietPlanType =
+  | 'protein' | 'gm' | 'hybrid'
+  | 'keto' | 'low-gi' | 'vlcd' | 'intermittent-fasting'
+  | 'bulking' | 'cutting' | 'endurance'
+  | 'mediterranean' | 'dash' | 'anti-inflammatory' | 'gut-health'
+  | 'vegan' | 'paleo' | 'whole30' | 'flexitarian'
 
 export interface DietIngredient {
   name: string

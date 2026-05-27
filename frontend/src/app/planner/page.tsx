@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar, Plus, Trash2, ShoppingCart,
   ChefHat, Sparkles, Clock, Flame, CheckSquare,
-  Dumbbell, Leaf, Zap, ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp,
   RefreshCw, AlertCircle, Download, X
 } from 'lucide-react'
 import Link from 'next/link'
@@ -86,28 +86,33 @@ function MealSlot({
 
 // ─── AI Diet Plan ─────────────────────────────────────────────────────────────
 
-const DIET_TYPES: { value: DietPlanType; label: string; icon: React.ReactNode; desc: string; color: string }[] = [
-  {
-    value: 'protein',
-    label: 'Protein Diet',
-    icon: <Dumbbell className="w-5 h-5" />,
-    desc: 'High-protein for muscle building & satiety',
-    color: 'border-blue-400 bg-blue-50 text-blue-700',
-  },
-  {
-    value: 'gm',
-    label: 'GM Diet',
-    icon: <Leaf className="w-5 h-5" />,
-    desc: '7-day General Motors detox cleanse',
-    color: 'border-green-400 bg-green-50 text-green-700',
-  },
-  {
-    value: 'hybrid',
-    label: 'Hybrid Diet',
-    icon: <Zap className="w-5 h-5" />,
-    desc: 'Balanced blend of multiple diet principles',
-    color: 'border-purple-400 bg-purple-50 text-purple-700',
-  },
+const DIET_META: Record<DietPlanType, { label: string; emoji: string; desc: string }> = {
+  protein:               { label: 'Protein Diet',           emoji: '🏋️', desc: 'High-protein for muscle & satiety' },
+  gm:                    { label: 'GM Diet',                emoji: '🥗', desc: '7-day General Motors detox' },
+  hybrid:                { label: 'Hybrid Diet',            emoji: '⚡', desc: 'Balanced multi-principle blend' },
+  keto:                  { label: 'Keto',                   emoji: '🥑', desc: 'Very low carb, high fat' },
+  'low-gi':              { label: 'Low-GI / Diabetic',      emoji: '🩺', desc: 'Controlled glycemic index' },
+  vlcd:                  { label: 'VLCD',                   emoji: '🎯', desc: '800–1000 kcal deficit' },
+  'intermittent-fasting':{ label: 'Intermittent Fasting',   emoji: '⏰', desc: '16:8 eating window' },
+  bulking:               { label: 'Bulking',                emoji: '💪', desc: 'Caloric surplus for mass gain' },
+  cutting:               { label: 'Cutting',                emoji: '✂️', desc: 'Deficit + high protein' },
+  endurance:             { label: 'Endurance',              emoji: '🏃', desc: 'Carb-heavy for athletes' },
+  mediterranean:         { label: 'Mediterranean',          emoji: '🫒', desc: 'Olive oil, fish, whole grains' },
+  dash:                  { label: 'DASH',                   emoji: '❤️', desc: 'Low sodium, heart-healthy' },
+  'anti-inflammatory':   { label: 'Anti-Inflammatory',      emoji: '🫐', desc: 'Omega-3s, turmeric, berries' },
+  'gut-health':          { label: 'Gut Health',             emoji: '🌿', desc: 'Fermented foods, high fibre' },
+  vegan:                 { label: 'Vegan',                  emoji: '🌱', desc: 'Zero animal products' },
+  paleo:                 { label: 'Paleo',                  emoji: '🦕', desc: 'No grains, dairy or legumes' },
+  whole30:               { label: 'Whole30',                emoji: '✅', desc: '30-day elimination reset' },
+  flexitarian:           { label: 'Flexitarian',            emoji: '🥦', desc: 'Mostly plant, flexible' },
+}
+
+const DIET_CATEGORIES: { label: string; diets: DietPlanType[] }[] = [
+  { label: 'Popular',           diets: ['protein', 'gm', 'hybrid'] },
+  { label: 'Weight Loss',       diets: ['keto', 'low-gi', 'vlcd', 'intermittent-fasting'] },
+  { label: 'Muscle & Athletic', diets: ['bulking', 'cutting', 'endurance'] },
+  { label: 'Health & Wellness', diets: ['mediterranean', 'dash', 'anti-inflammatory', 'gut-health'] },
+  { label: 'Lifestyle',         diets: ['vegan', 'paleo', 'whole30', 'flexitarian'] },
 ]
 
 const CALORIE_TARGETS = [1200, 1500, 1800, 2000, 2500]
@@ -329,23 +334,40 @@ function AIDietPlanTab() {
           <p className="text-sm text-gray-500 mt-0.5">AI will generate a personalised 7-day plan with ingredient weights and calorie counts</p>
         </div>
 
-        {/* Diet type selector */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {DIET_TYPES.map(({ value, label, icon, desc, color }) => (
-            <button
-              key={value}
-              onClick={() => setDietType(value)}
-              className={cn(
-                'flex flex-col items-start gap-2 p-4 rounded-2xl border-2 text-left transition-all',
-                dietType === value ? color : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-              )}
-            >
-              <div className="flex items-center gap-2 font-bold text-sm">
-                {icon} {label}
+        {/* Diet type selector — categorised */}
+        <div className="space-y-3">
+          {DIET_CATEGORIES.map(({ label: catLabel, diets }) => (
+            <div key={catLabel}>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{catLabel}</p>
+              <div className="flex flex-wrap gap-2">
+                {diets.map(value => {
+                  const { label, emoji, desc } = DIET_META[value]
+                  const active = dietType === value
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => setDietType(value)}
+                      title={desc}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all',
+                        active
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-orange-300 hover:bg-orange-50'
+                      )}
+                    >
+                      <span>{emoji}</span>
+                      <span>{label}</span>
+                    </button>
+                  )
+                })}
               </div>
-              <p className={cn('text-xs', dietType === value ? 'opacity-80' : 'text-gray-400')}>{desc}</p>
-            </button>
+            </div>
           ))}
+          {/* Selected diet description */}
+          <p className="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
+            <span className="font-semibold text-gray-700">{DIET_META[dietType].label}:</span>{' '}
+            {DIET_META[dietType].desc}
+          </p>
         </div>
 
         {/* Calorie target */}
