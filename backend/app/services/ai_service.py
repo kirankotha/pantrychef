@@ -1,13 +1,35 @@
 import json
 import hashlib
+import logging
 from typing import List, Optional
-from openai import AsyncOpenAI
-from app.core.config import settings
 
-client = AsyncOpenAI(
-    api_key=settings.GROQ_API_KEY,
-    base_url="https://api.groq.com/openai/v1",
+from openai import AsyncOpenAI, RateLimitError, APIStatusError
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
 )
+
+from app.core.config import settings
+from app.core.redis_client import get_redis
+
+logger = logging.getLogger(__name__)
+
+_client: AsyncOpenAI | None = None
+
+
+def _get_client() -> AsyncOpenAI:
+    global _client
+    if _client is None:
+        _client = AsyncOpenAI(
+            api_key=settings.GROQ_API_KEY,
+            base_url="https://api.groq.com/openai/v1",
+            max_retries=0,  # tenacity handles retries
+        )
+    return _client
+
 
 SYSTEM_PROMPT = """You are PantryChef, an expert professional chef and nutritionist with 20 years of experience across world cuisines. Generate creative, delicious, and practical recipes.
 
@@ -76,7 +98,24 @@ def build_cache_key(
     mode: str,
 ) -> str:
     data = f"{sorted(ingredients)}|{cuisine}|{sorted(dietary)}|{max_time}|{skill_level}|{servings}|{mode}"
-    return hashlib.md5(data.encode()).hexdigest()
+    return "pantrychef:recipes:" + hashlib.md5(data.encode()).hexdigest()
+
+
+@retry(
+    retry=retry_if_exception_type((RateLimitError, APIStatusError)),
+    stop=stop_after_attempt(settings.GROQ_MAX_RETRIES),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+async def _call_groq(messages: list, temperature: float = 0.8) -> any:
+    return await _get_client().chat.completions.create(
+        model=settings.GROQ_MODEL,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=settings.GROQ_MAX_TOKENS,
+        response_format={"type": "json_object"},
+    )
 
 
 async def generate_recipes(
@@ -88,6 +127,19 @@ async def generate_recipes(
     servings: int,
     mode: str,
 ) -> dict:
+    ingredient_names = [i["name"] for i in ingredients]
+    cache_key = build_cache_key(ingredient_names, cuisine or "", dietary, max_time, skill_level, servings, mode)
+
+    redis = await get_redis()
+    if redis:
+        try:
+            cached = await redis.get(cache_key)
+            if cached:
+                logger.info("Cache hit for key %s", cache_key[-8:])
+                return json.loads(cached)
+        except Exception as e:
+            logger.warning("Redis get failed: %s", e)
+
     ingredient_list = ", ".join(
         f"{i.get('amount', '')} {i['name']}".strip() for i in ingredients
     )
@@ -113,16 +165,11 @@ Mode instruction: {mode_instructions.get(mode, mode_instructions['standard'])}
 
 Generate 3-4 creative recipes that maximize use of the available ingredients. For any missing ingredients, suggest realistic substitutions using common pantry items."""
 
-    response = await client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.8,
-        max_tokens=settings.GROQ_MAX_TOKENS,
-        response_format={"type": "json_object"},
-    )
+    logger.info("Calling Groq for %d ingredients, mode=%s", len(ingredients), mode)
+    response = await _call_groq([
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ])
 
     content = response.choices[0].message.content
     if not content:
@@ -130,28 +177,33 @@ Generate 3-4 creative recipes that maximize use of the available ingredients. Fo
 
     parsed = json.loads(content)
     recipes = parsed.get("recipes", [])
-
-    # Sort by match score descending
     recipes.sort(key=lambda r: r.get("matchScore", 0), reverse=True)
 
-    return {
+    result = {
         "recipes": recipes,
         "model": response.model,
         "usage": {
             "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
             "completion_tokens": response.usage.completion_tokens if response.usage else 0,
-        }
+        },
     }
+
+    if redis:
+        try:
+            await redis.setex(cache_key, settings.CACHE_TTL, json.dumps(result))
+            logger.info("Cached recipes under key %s (TTL=%ds)", cache_key[-8:], settings.CACHE_TTL)
+        except Exception as e:
+            logger.warning("Redis set failed: %s", e)
+
+    return result
 
 
 async def detect_ingredients_from_image(image_base64: str) -> List[str]:
-    """Image ingredient detection — not supported with Groq (no vision models)."""
     raise NotImplementedError("Image detection is not available with the Groq provider.")
 
 
 async def generate_cooking_tip(recipe_name: str, step: str) -> str:
-    """Generate an AI cooking tip for a specific step."""
-    response = await client.chat.completions.create(
+    response = await _get_client().chat.completions.create(
         model=settings.GROQ_MODEL,
         messages=[
             {
