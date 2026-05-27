@@ -11,13 +11,13 @@ export function middleware(request: NextRequest) {
   const isAuthPage = AUTH_PAGES.includes(pathname)
 
   if (isProtected && !token) {
-    const url = new URL('/login', request.url)
+    const url = new URL('/pantrychef/login', request.url)
     url.searchParams.set('from', pathname)
     return NextResponse.redirect(url)
   }
 
   if (isAuthPage && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/pantrychef/dashboard', request.url))
   }
 
   return NextResponse.next()
