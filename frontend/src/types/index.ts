@@ -127,6 +127,44 @@ export interface ShoppingListItem {
   checked: boolean
 }
 
+export type DietPlanType = 'protein' | 'gm' | 'hybrid'
+
+export interface DietIngredient {
+  name: string
+  amount: string
+  grams: number
+}
+
+export interface DietMeal {
+  name: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  prepTime: number
+  ingredients: DietIngredient[]
+  instructions: string[]
+}
+
+export interface DietDay {
+  day: string
+  breakfast: DietMeal
+  lunch: DietMeal
+  dinner: DietMeal
+  snack: DietMeal
+  totalCalories: number
+  totalProtein: number
+  totalCarbs: number
+  totalFat: number
+}
+
+export interface GeneratedDietPlan {
+  name: string
+  description: string
+  weeklyAvgCalories: number
+  days: DietDay[]
+}
+
 export interface UserProfile {
   id: string
   name: string

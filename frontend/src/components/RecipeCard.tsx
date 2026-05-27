@@ -89,13 +89,26 @@ export default function RecipeCard({ recipe, index = 0, onView }: Props) {
             <Clock className="w-3.5 h-3.5 text-gray-400" />
             {formatTime(recipe.totalTime)}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 font-semibold text-orange-600">
             <Flame className="w-3.5 h-3.5 text-orange-400" />
             {recipe.nutrition.calories} kcal
           </span>
           <span className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5 text-gray-400" />
             {recipe.servings}
+          </span>
+        </div>
+
+        {/* Macro badges */}
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">
+            P {recipe.nutrition.protein}g
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium">
+            C {recipe.nutrition.carbs}g
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-medium">
+            F {recipe.nutrition.fat}g
           </span>
         </div>
 
